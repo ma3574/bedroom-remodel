@@ -1,9 +1,11 @@
-// Generic fluted bedside tables (echoing the headboard channels) with optional table lamps.
+// Bedside tables: a generic fluted box, or the rounded reeded oak design from the supplied photos
+// (reference/bedside-reeded-*.png). Optional table lamps.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
 import { boxMM, roundedBoxMM } from '../geom';
 import { bedsideRects } from '../layout';
+import { reededRoundedRect, reededStrip, type Pt } from '../lib/reeds';
 import { M, finishMaterial } from '../materials/library';
 import type { State } from '../state';
 import { mm } from '../units';
@@ -87,6 +89,105 @@ function table(w: number, d: number, h: number, mat: THREE.Material): THREE.Grou
   return g;
 }
 
+/**
+ * Vertical prism from a plan outline (x across, z towards the front, mm), smooth-shaded.
+ * `verticalGrain` swaps the side-wall UVs so wood grain runs up the reeds.
+ */
+function prism(outline: Pt[], y0: number, y1: number, mat: THREE.Material, verticalGrain: boolean): THREE.Mesh {
+  // Shape y = −z so that after rotateX(−90°) the plan maps onto world (x, z) and extrusion goes up.
+  const shape = new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(mm(x), -mm(z))));
+  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(shape, { depth: mm(y1 - y0), bevelEnabled: false, curveSegments: 1 });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, mm(y0), 0);
+  g.deleteAttribute('normal');
+  g = mergeVertices(g);
+  g.computeVertexNormals();
+  // UVs are in metres; scale up so the grain reads at furniture scale, and turn it vertical if asked.
+  const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) {
+    const u = uv.getX(i) * 2.5;
+    const v = uv.getY(i) * 2.5;
+    if (verticalGrain) uv.setXY(i, v, u);
+    else uv.setXY(i, u, v);
+  }
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+const shadowGap = new THREE.MeshStandardMaterial({ color: '#2B2018', roughness: 1 });
+
+/** Rounded reeded design: reeded carcass on a base slab with four round legs, two reeded drawers, oak bar handles. */
+function reededTable(w: number, d: number, h: number, mat: THREE.Material, handleMat: THREE.Material): THREE.Group {
+  const R = CONFIG.reededTable;
+  const g = new THREE.Group();
+  const legTop = R.legHeight;
+  const baseTop = legTop + R.baseThickness;
+  const topBottom = h - R.topThickness;
+  const r = Math.min(R.cornerRadius, d / 4, w / 4);
+  const step = R.reedPitch / 8;
+
+  // Top and base slabs: plain rounded rectangles.
+  g.add(prism(reededRoundedRect({ x0: 0, x1: w, y0: 0, y1: d, r: r + 8, pitch: 1, depth: 0, step: 6 }), topBottom, h, mat, false));
+  g.add(prism(reededRoundedRect({ x0: 4, x1: w - 4, y0: 0, y1: d - 4, r: r + 4, pitch: 1, depth: 0, step: 6 }), legTop, baseTop, mat, false));
+
+  // Reeded carcass with the straight front recessed for the drawers.
+  const cx0 = 10;
+  const cx1 = w - 10;
+  const cz1 = d - 10 - R.reedDepth;
+  const drawerT = 18;
+  g.add(
+    prism(
+      reededRoundedRect({ x0: cx0, x1: cx1, y0: 0, y1: cz1, r, pitch: R.reedPitch, depth: R.reedDepth, step, frontRecess: drawerT + 2 }),
+      baseTop,
+      topBottom,
+      mat,
+      true,
+    ),
+  );
+
+  // Two reeded drawer fronts filling the flat front between the rounded corners, with dark shadow gaps.
+  const dx0 = cx0 + r + 3;
+  const dx1 = cx1 - r - 3;
+  g.add(boxMM([cx0 + r - 1, baseTop, cz1 - drawerT - 2], [cx1 - r + 1, topBottom, cz1 - drawerT - 1], shadowGap));
+  const zone0 = baseTop + 6;
+  const zone1 = topBottom - 6;
+  const dh = (zone1 - zone0 - R.drawerGap) / 2;
+  const H = R.handle;
+  for (let i = 0; i < 2; i++) {
+    const y0 = zone0 + i * (dh + R.drawerGap);
+    g.add(prism(reededStrip(dx0, dx1, cz1 - drawerT, cz1, R.reedPitch, R.reedDepth, step), y0, y0 + dh, mat, true));
+    // Oak bar handle on two short posts, centred on the drawer.
+    const hy = y0 + dh / 2;
+    const face = cz1 + R.reedDepth;
+    const bar = new THREE.Mesh(new THREE.CapsuleGeometry(mm(H.diameter / 2), mm(H.length - H.diameter), 6, 16), handleMat);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.set(mm(w / 2), mm(hy), mm(face + H.standoff));
+    g.add(bar);
+    for (const sx of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(mm(6), mm(6), mm(H.standoff), 12), handleMat);
+      post.rotation.x = Math.PI / 2;
+      post.position.set(mm(w / 2 + (sx * H.posts) / 2), mm(hy), mm(face + H.standoff / 2));
+      g.add(post);
+    }
+  }
+
+  // Round legs.
+  for (const x of [R.legInset.x, w - R.legInset.x]) {
+    for (const z of [R.legInset.z, d - R.legInset.z]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(mm(R.legDiameter / 2), mm(R.legDiameter / 2 - 2), mm(legTop), 24), mat);
+      leg.position.set(mm(x), mm(legTop / 2), mm(z));
+      g.add(leg);
+    }
+  }
+  g.traverse((o) => {
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+  return g;
+}
+
 function lamp(): { group: THREE.Group; light: THREE.PointLight; shade: THREE.Mesh } {
   const group = new THREE.Group();
   const base = new THREE.Mesh(
@@ -122,8 +223,11 @@ export function buildBedsideTables(s: State): BedsideRefs {
   const lampLights: THREE.PointLight[] = [];
   const lampShades: THREE.Mesh[] = [];
   const mat = finishMaterial(s.bedside.finish);
+  const handleMat = s.bedside.finish === 'oak' ? M.handleOak : mat;
   for (const r of bedsideRects(s)) {
-    const t = table(r.x1 - r.x0, r.z1 - r.z0, s.bedside.h, mat);
+    const w = r.x1 - r.x0;
+    const d = r.z1 - r.z0;
+    const t = s.bedside.style === 'reeded-oak' ? reededTable(w, d, s.bedside.h, mat, handleMat) : table(w, d, s.bedside.h, mat);
     t.position.set(mm(r.x0), 0, mm(r.z0));
     group.add(t);
     const l = lamp();

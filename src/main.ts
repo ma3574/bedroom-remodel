@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { CONFIG, OPENINGS } from './config';
+import { buildAircon, type AirconRefs } from './furniture/aircon';
 import { buildBed, type BedRefs } from './furniture/bed';
 import { buildBedsideTables, type BedsideRefs } from './furniture/bedsideTable';
 import { buildDressingTable, type DressingRefs } from './furniture/dressingTable';
@@ -8,6 +9,7 @@ import { buildPendant, type PendantRefs } from './furniture/pendant';
 import { buildWardrobes, type WardrobeRefs } from './furniture/wardrobes';
 import { disposeTree } from './geom';
 import { wardrobeDims } from './layout';
+import { acFit } from './lib/aircon';
 import { blindSummary } from './lib/blinds';
 import { curtainSummary } from './lib/curtains';
 import { fitCheck } from './lib/fit';
@@ -67,6 +69,7 @@ let blindsForce = true;
 // Blinds live in the window-wall group so they hide (but still cast shadows) with that wall.
 const blindsHolder = new THREE.Group();
 shell.wallGroups.window.add(blindsHolder);
+let aircon: AirconRefs | null = null;
 let curtains: CurtainRefs | null = null;
 let curtainsForce = true;
 const curtainsHolder = new THREE.Group();
@@ -107,10 +110,11 @@ function applyVisibility(): void {
     wardrobes.fillers.visible = state.show.fillers;
   }
   if (pendant) pendant.group.visible = state.show.pendant;
+  if (aircon) aircon.group.visible = state.show.aircon;
   doors.group.visible = state.show.doors;
 }
 
-const BUILD_ORDER: Section[] = ['floor', 'wardrobes', 'bed', 'bedside', 'dressing', 'blinds', 'curtains', 'pendant', 'visibility', 'colours', 'lighting', 'overlays'];
+const BUILD_ORDER: Section[] = ['floor', 'wardrobes', 'bed', 'bedside', 'dressing', 'blinds', 'curtains', 'aircon', 'pendant', 'visibility', 'colours', 'lighting', 'overlays'];
 const dirty = new Set<Section>(BUILD_ORDER);
 
 function processDirty(): void {
@@ -191,6 +195,18 @@ function processDirty(): void {
         gui.setCurtainSize(curtains.layout ? curtainSummary(curtains.layout, state.curtains.hardware) : '—');
         break;
       }
+      case 'aircon': {
+        if (aircon) {
+          scene.remove(aircon.group);
+          disposeTree(aircon.group);
+        }
+        aircon = buildAircon(state);
+        aircon.update(anim.acFlap);
+        scene.add(aircon.group);
+        gui.setAcFit(acFit(state.aircon.gapToWindowWall, state.aircon.gapToCeiling).message);
+        dirty.add('visibility');
+        break;
+      }
       case 'pendant': {
         const next = buildPendant(state);
         if (pendant) {
@@ -235,6 +251,7 @@ const anim = {
   blindLower: state.blinds.lowered,
   blindTilt: state.blinds.tilt,
   curtainOpen: state.curtains.open,
+  acFlap: state.aircon.running ? 1 : 0,
 };
 const approach = (cur: number, target: number, dt: number, rate = 7) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
@@ -262,6 +279,13 @@ function updateAnimations(dt: number): void {
     }
     anim.blindLower = lower;
     anim.blindTilt = tilt;
+  }
+  if (aircon) {
+    const target = state.aircon.running ? 1 : 0;
+    if (Math.abs(target - anim.acFlap) > 1e-3) {
+      anim.acFlap = approach(anim.acFlap, target, dt, 2.5);
+      aircon.update(anim.acFlap);
+    }
   }
   if (curtains) {
     const open = approach(anim.curtainOpen, state.curtains.open, dt, 3.5);

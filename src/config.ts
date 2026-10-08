@@ -12,6 +12,7 @@ export interface WardrobeBuild {
   base: number;
 }
 
+export type BedsideStyle = 'fluted' | 'reeded-oak';
 export type BlindType = 'none' | 'faux-wood' | 'metal';
 export type BlindMount = 'recess' | 'face';
 export type BlindFinish = 'white' | 'linen' | 'grey-beige' | 'oak' | 'silver' | 'black';
@@ -118,6 +119,24 @@ export const CONFIG = {
   },
 
   bedsideTable: { w: 350, d: 400, h: 550, gapToBed: 0, flutePitch: 25, fluteRadius: 10, topThickness: 20 },
+  /** Selectable bedside table designs; switching style resets W/D/H to these. */
+  bedsideStyles: {
+    fluted: { label: 'Generic fluted box', w: 350, d: 400, h: 550 },
+    // From the supplied photos (no product link): proportions W ≈ 0.80·H, D ≈ 0.75·H.
+    'reeded-oak': { label: 'Rounded reeded oak, 2 drawers', w: 450, d: 420, h: 560 },
+  } as Record<BedsideStyle, { label: string; w: number; d: number; h: number }>,
+  reededTable: {
+    legHeight: 120,
+    legDiameter: 38,
+    legInset: { x: 70, z: 50 },
+    topThickness: 20,
+    baseThickness: 18,
+    cornerRadius: 80,
+    reedPitch: 21,
+    reedDepth: 6,
+    drawerGap: 4,
+    handle: { length: 110, diameter: 18, posts: 70, standoff: 24 },
+  },
 
   wardrobes: {
     run: { xStart: 100, units: 4, unitWidth: 1000 },
@@ -218,6 +237,21 @@ export const CONFIG = {
   },
 
   pendant: { x: 2100, z: 2275, drop: 330 },
+
+  /** Daikin FTXP25M (Comfora) wall-mounted indoor unit, in the bed-wall / window-wall corner. */
+  aircon: {
+    model: 'Daikin FTXP25M',
+    w: 770,
+    h: 286,
+    d: 225,
+    gapToWindowWall: 100,
+    gapToCeiling: 100,
+    // Installer guide (FTXP-M): ≥ 50mm to walls and ceiling; install ≥ 1.8m above the floor.
+    minClearance: 50,
+    minHeight: 1800,
+    flapMaxAngle: 60,
+    airflowAngle: 35, // degrees below horizontal with the flap open
+  },
 };
 
 /** Derived opening positions. `a` is the along-wall coordinate (door wall: a = z; window wall: a = 4550 − z). */

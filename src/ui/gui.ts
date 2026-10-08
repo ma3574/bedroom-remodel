@@ -1,6 +1,6 @@
 // lil-gui control panel bound directly to the State object.
 import GUI, { type Controller } from 'lil-gui';
-import { CONFIG, type BlindFinish, type BlindType, type BuildId, type PoleFinish } from '../config';
+import { CONFIG, type BedsideStyle, type BlindFinish, type BlindType, type BuildId, type PoleFinish } from '../config';
 import { HANDLE_OPTIONS } from '../furniture/handles';
 import { PENDANT_OPTIONS } from '../furniture/pendant';
 import { CAMERA_PRESETS } from '../scene/cameras';
@@ -15,6 +15,7 @@ export type Section =
   | 'dressing'
   | 'blinds'
   | 'curtains'
+  | 'aircon'
   | 'pendant'
   | 'lighting'
   | 'visibility'
@@ -38,6 +39,7 @@ export interface GuiApi {
   setFit: (text: string) => void;
   setBlindSize: (text: string) => void;
   setCurtainSize: (text: string) => void;
+  setAcFit: (text: string) => void;
 }
 
 const invert = <T extends string>(o: Record<T, string>): Record<string, T> =>
@@ -82,6 +84,7 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
     fillers: 'MDF fillers',
     pendant: 'Pendant',
     doors: 'Room doors',
+    aircon: 'Air conditioner',
   };
   for (const k of Object.keys(showLabels) as (keyof State['show'])[]) {
     show.add(s.show, k).name(showLabels[k]).onChange(on('visibility', 'overlays', 'lighting'));
@@ -142,9 +145,22 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
 
   // Bedside tables
   const bs = gui.addFolder('Bedside tables');
-  bs.add(s.bedside, 'w', 300, 600, 5).name('Width (mm)').onChange(on('bedside', 'overlays'));
-  bs.add(s.bedside, 'd', 300, 500, 5).name('Depth (mm)').onChange(on('bedside', 'overlays'));
-  bs.add(s.bedside, 'h', 400, 700, 5).name('Height (mm)').onChange(on('bedside'));
+  const styles: Record<string, BedsideStyle> = {};
+  for (const [k, v] of Object.entries(CONFIG.bedsideStyles)) styles[v.label] = k as BedsideStyle;
+  const dimCtls: Controller[] = [];
+  bs.add(s.bedside, 'style', styles).name('Design').onChange((st: BedsideStyle) => {
+    const d = CONFIG.bedsideStyles[st];
+    s.bedside.w = d.w;
+    s.bedside.d = d.d;
+    s.bedside.h = d.h;
+    for (const c of dimCtls) c.updateDisplay();
+    on('bedside', 'overlays')();
+  });
+  dimCtls.push(
+    bs.add(s.bedside, 'w', 300, 600, 5).name('Width (mm)').onChange(on('bedside', 'overlays')),
+    bs.add(s.bedside, 'd', 300, 500, 5).name('Depth (mm)').onChange(on('bedside', 'overlays')),
+    bs.add(s.bedside, 'h', 400, 700, 5).name('Height (mm)').onChange(on('bedside')),
+  );
   bs.add(s.bedside, 'gap', 0, 100, 1).name('Gap to bed (mm)').onChange(on('bedside', 'overlays'));
   bs.add(s.bedside, 'finish', { Oak: 'oak', 'Cream fabric': 'cream', 'Grey-beige': 'grey-beige', Walnut: 'walnut' }).name('Finish').onChange(on('bedside'));
   bs.close();
@@ -198,6 +214,15 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
   const curtainSize = { text: '' };
   const curtainSizeCtl = cu.add(curtainSize, 'text').name('Order size').disable();
   cu.close();
+
+  // Air conditioner
+  const ac = gui.addFolder('Air conditioner');
+  ac.add(s.aircon, 'running').name('Running (flap + airflow)').onChange(cb.changed);
+  ac.add(s.aircon, 'gapToWindowWall', 0, 600, 5).name('Gap to window wall (mm)').onChange(on('aircon', 'overlays'));
+  ac.add(s.aircon, 'gapToCeiling', 0, 300, 5).name('Gap to ceiling (mm)').onChange(on('aircon', 'overlays'));
+  const acFitText = { text: '' };
+  const acFitCtl = ac.add(acFitText, 'text').name(CONFIG.aircon.model).disable();
+  ac.close();
 
   // Floor
   const fl = gui.addFolder('Floor');
@@ -269,6 +294,10 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
     setCurtainSize: (text: string) => {
       curtainSize.text = text;
       curtainSizeCtl.updateDisplay();
+    },
+    setAcFit: (text: string) => {
+      acFitText.text = text;
+      acFitCtl.updateDisplay();
     },
   };
 }

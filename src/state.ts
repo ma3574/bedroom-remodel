@@ -1,5 +1,6 @@
 import {
   CONFIG,
+  type BedsideStyle,
   type BlindFinish,
   type BlindMount,
   type BlindType,
@@ -46,6 +47,7 @@ export function defaultState() {
       fillers: true,
       pendant: true,
       doors: true,
+      aircon: true,
     },
     doors: {
       mainAngle: 0,
@@ -67,6 +69,7 @@ export function defaultState() {
       fabric: CONFIG.colours.bedFabric,
     },
     bedside: {
+      style: 'fluted' as BedsideStyle,
       w: CONFIG.bedsideTable.w,
       d: CONFIG.bedsideTable.d,
       h: CONFIG.bedsideTable.h,
@@ -86,6 +89,11 @@ export function defaultState() {
       panels: 3,
       lowered: 100,
       tilt: 15,
+    },
+    aircon: {
+      running: false,
+      gapToWindowWall: CONFIG.aircon.gapToWindowWall,
+      gapToCeiling: CONFIG.aircon.gapToCeiling,
     },
     curtains: {
       enabled: true,

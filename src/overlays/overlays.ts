@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { CONFIG, OPENINGS } from '../config';
 import { bedRect, bedsideRects, dressingRect, rectGap, wardrobeDims, wardrobeDoor, type Rect } from '../layout';
+import { acPlacement } from '../lib/aircon';
 import { curtainLayout, curtainSettingsFrom } from '../lib/curtains';
 import type { State } from '../state';
 import { mm } from '../units';
@@ -206,6 +207,18 @@ export function buildOverlays(s: State): THREE.Group {
     group.add(label(`Main door ${CONFIG.mainDoor.leaf.w} × ${CONFIG.mainDoor.leaf.h}`, 520, 10, (main.a0 + main.a1) / 2 + 120, 'dim'));
     group.add(label(`Ensuite pocket door ${CONFIG.ensuiteDoor.leaf.w} × ${CONFIG.ensuiteDoor.leaf.h}`, 620, 10, (ensuite.a0 + ensuite.a1) / 2, 'dim'));
     group.add(label(`Window ${CONFIG.window.width} × ${CONFIG.window.height}, sill ≈${CONFIG.window.sill}`, R.width - 700, 10, CONFIG.window.zCentre - 250, 'dim'));
+    if (s.show.aircon) {
+      const ac = acPlacement(s.aircon.gapToWindowWall, s.aircon.gapToCeiling);
+      group.add(
+        label(
+          `AC ${CONFIG.aircon.w}×${CONFIG.aircon.h}×${CONFIG.aircon.d}: ${s.aircon.gapToWindowWall} from wall, ${s.aircon.gapToCeiling} from ceiling`,
+          (ac.x0 + ac.x1) / 2,
+          ac.y1,
+          ac.z1 + 120,
+          'dim',
+        ),
+      );
+    }
   }
 
   if (s.overlays.grid) {

@@ -538,3 +538,22 @@ Built as planned. Differences from the spec above:
 - **Default length is below sill (hem 850)**, because floor-length curtains would hit the dressing table (top 760) under the window. The clearances overlay flags this ("Curtain hem → dressing table top").
 - **Pure maths** is in `src/lib/curtains.ts` (6 unit tests). The order readout shows pole width × drop and fabric widths per curtain. Defaults: pole 2760mm, drop about 1506mm, about 2.2 fabric widths per curtain.
 
+### Bedside table: rounded reeded oak option (added after v0.1)
+- **Source:** the photos in `reference/bedside-reeded-{front,angle,side}.png`. There's no product link, so the size is estimated from proportions in the photos (W ≈ 0.80·H, D ≈ 0.75·H): **450 × 420 × 560mm**, with legs about 120mm. The W/D/H sliders still apply.
+- **Design:** `Bedside tables → Design`. Choosing a design resets W/D/H to that design's defaults (`CONFIG.bedsideStyles`). The generic fluted box stays the default.
+- **Geometry:**
+  - Rounded-rectangle carcass (80mm corners) with half-round reeds (21mm pitch, 6mm deep) running continuously round the corners.
+  - The flat front is recessed for two reeded drawer fronts with dark shadow gaps.
+  - Oak bar handles on posts, radiused top and base slabs, four round legs.
+  - Outlines come from `src/lib/reeds.ts` (tested), are extruded and smooth-shaded, and have the UVs turned so the oak grain runs up the reeds.
+- **Fit:** at 450mm wide, the left table still clears the fully open main door, by 98mm.
+
+### Air conditioner (added after v0.1)
+- **Unit:** Daikin FTXP25M (Comfora) wall-mounted indoor unit, **W770 × H286 × D225mm** (from the FTXP25M9/RXP25M spec listing).
+- **Position:** on the bed wall in the window-wall corner, **100mm from the window wall and 100mm below the ceiling**. That puts it at x 3330–4100 with the underside at 2074mm.
+  - With the bed where the PDF puts it, the unit sits just right of the headboard (whose right edge is at x 3250), above the right bedside table.
+  - It stays clear of the curtain pole's finial, which ends at about z 750 on the window wall.
+- **Installer guide (FTXP-M):** at least 50mm to walls and the ceiling, and installed at least 1.8m above the floor. `src/lib/aircon.ts` checks the gaps and shows the result in the panel (3 unit tests).
+- **Model:** white body, intake grille on top, dark outlet, a flap hinged at the outlet that opens 60° when *Running*, a status light, and three translucent airflow sheets angled about 35° downwards.
+- **Visibility:** shown or hidden under *Show / hide → Air conditioner*. Like the room doors, it is never cut away with its wall.
+
