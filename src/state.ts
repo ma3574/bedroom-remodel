@@ -1,4 +1,14 @@
-import { CONFIG, type BuildId, type FrameSize } from './config';
+import {
+  CONFIG,
+  type BlindFinish,
+  type BlindMount,
+  type BlindType,
+  type BuildId,
+  type CurtainDrop,
+  type CurtainHardware,
+  type FrameSize,
+  type PoleFinish,
+} from './config';
 
 export type CameraPreset = 'corner' | 'plan' | 'doorway' | 'bed' | 'ensuite' | 'wardrobes' | 'window';
 export type HandleId =
@@ -68,6 +78,25 @@ export function defaultState() {
       along: CONFIG.dressingTable.along,
       w: CONFIG.dressingTable.w,
       d: CONFIG.dressingTable.d,
+    },
+    blinds: {
+      type: 'faux-wood' as BlindType,
+      finish: 'white' as BlindFinish,
+      mount: 'recess' as BlindMount,
+      panels: 3,
+      lowered: 100,
+      tilt: 15,
+    },
+    curtains: {
+      enabled: true,
+      open: 100,
+      drop: 'below-sill' as CurtainDrop,
+      hardware: 'pole' as CurtainHardware,
+      finish: 'antique-brass' as PoleFinish,
+      extend: CONFIG.curtains.extendEachSide,
+      above: CONFIG.curtains.aboveWindow,
+      fullness: CONFIG.curtains.fullness,
+      colour: CONFIG.curtains.fabric.colour,
     },
     floor: {
       axis: 'x' as 'x' | 'z',

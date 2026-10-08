@@ -1,6 +1,6 @@
 // lil-gui control panel bound directly to the State object.
 import GUI, { type Controller } from 'lil-gui';
-import { CONFIG, type BuildId } from '../config';
+import { CONFIG, type BlindFinish, type BlindType, type BuildId, type PoleFinish } from '../config';
 import { HANDLE_OPTIONS } from '../furniture/handles';
 import { PENDANT_OPTIONS } from '../furniture/pendant';
 import { CAMERA_PRESETS } from '../scene/cameras';
@@ -13,6 +13,8 @@ export type Section =
   | 'bed'
   | 'bedside'
   | 'dressing'
+  | 'blinds'
+  | 'curtains'
   | 'pendant'
   | 'lighting'
   | 'visibility'
@@ -34,6 +36,8 @@ export interface GuiApi {
   gui: GUI;
   refresh: () => void;
   setFit: (text: string) => void;
+  setBlindSize: (text: string) => void;
+  setCurtainSize: (text: string) => void;
 }
 
 const invert = <T extends string>(o: Record<T, string>): Record<string, T> =>
@@ -153,6 +157,48 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
   dt.add(s.dressing, 'd', 350, 600, 5).name('Depth (mm)').onChange(on('dressing', 'overlays'));
   dt.close();
 
+  // Blinds
+  const bl = gui.addFolder('Blinds');
+  const blindTypes: Record<string, BlindType> = { None: 'none' };
+  for (const [k, v] of Object.entries(CONFIG.blinds.types)) blindTypes[v.label] = k as BlindType;
+  const finishes: Record<string, BlindFinish> = {};
+  for (const [k, v] of Object.entries(CONFIG.blinds.finishes)) finishes[v.label] = k as BlindFinish;
+  let finishCtl: Controller;
+  bl.add(s.blinds, 'type', blindTypes).name('Type').onChange((t: BlindType) => {
+    if (t !== 'none') {
+      s.blinds.finish = CONFIG.blinds.types[t].defaultFinish;
+      finishCtl.updateDisplay();
+    }
+    on('blinds', 'curtains', 'overlays')();
+  });
+  finishCtl = bl.add(s.blinds, 'finish', finishes).name('Finish').onChange(on('blinds'));
+  bl.add(s.blinds, 'mount', { 'Inside the recess': 'recess', 'Outside (face fit)': 'face' }).name('Fitting').onChange(on('blinds', 'curtains', 'overlays'));
+  bl.add(s.blinds, 'panels', 1, 3, 1).name('Number of blinds').onChange(on('blinds'));
+  bl.add(s.blinds, 'lowered', 0, 100, 1).name('Lowered %').onChange(cb.changed);
+  bl.add(s.blinds, 'tilt', -80, 80, 1).name('Slat tilt (°)').onChange(cb.changed);
+  const blindSize = { text: '' };
+  const blindSizeCtl = bl.add(blindSize, 'text').name('Each blind').disable();
+  bl.close();
+
+  // Curtains
+  const cu = gui.addFolder('Curtains');
+  cu.add(s.curtains, 'enabled').name('Show curtains').onChange(on('curtains', 'overlays'));
+  cu.add(s.curtains, 'open', 0, 100, 1).name('Open % (0 = closed)').onChange(cb.changed);
+  cu.add(s.curtains, 'drop', { 'Sill length (hem 990)': 'sill', 'Below sill (hem 850)': 'below-sill', 'Floor length (hem 10)': 'floor' })
+    .name('Length')
+    .onChange(on('curtains', 'overlays'));
+  cu.add(s.curtains, 'hardware', { Pole: 'pole', Track: 'track' }).name('Hanging').onChange(on('curtains'));
+  const poleFinishes: Record<string, PoleFinish> = {};
+  for (const [k, v] of Object.entries(CONFIG.curtains.finishes)) poleFinishes[v.label] = k as PoleFinish;
+  cu.add(s.curtains, 'finish', poleFinishes).name('Pole finish').onChange(on('curtains'));
+  cu.add(s.curtains, 'extend', 100, 400, 10).name('Beyond window each side (mm)').onChange(on('curtains', 'overlays'));
+  cu.add(s.curtains, 'above', 60, 200, 5).name('Pole above window (mm)').onChange(on('curtains'));
+  cu.add(s.curtains, 'fullness', 1.8, 2.8, 0.05).name('Fullness').onChange(on('curtains'));
+  cu.addColor(s.curtains, 'colour').name('Fabric colour').onChange(on('curtains'));
+  const curtainSize = { text: '' };
+  const curtainSizeCtl = cu.add(curtainSize, 'text').name('Order size').disable();
+  cu.close();
+
   // Floor
   const fl = gui.addFolder('Floor');
   fl.add(s.floor, 'axis', { 'Across (parallel to wardrobes)': 'x', 'Along (towards wardrobes)': 'z' }).name('Herringbone direction').onChange(on('floor'));
@@ -215,6 +261,14 @@ export function buildGui(s: State, cb: GuiCallbacks): GuiApi {
     setFit: (text: string) => {
       fit.text = text;
       fitCtl.updateDisplay();
+    },
+    setBlindSize: (text: string) => {
+      blindSize.text = text;
+      blindSizeCtl.updateDisplay();
+    },
+    setCurtainSize: (text: string) => {
+      curtainSize.text = text;
+      curtainSizeCtl.updateDisplay();
     },
   };
 }

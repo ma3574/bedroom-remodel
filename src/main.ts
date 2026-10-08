@@ -8,14 +8,18 @@ import { buildPendant, type PendantRefs } from './furniture/pendant';
 import { buildWardrobes, type WardrobeRefs } from './furniture/wardrobes';
 import { disposeTree } from './geom';
 import { wardrobeDims } from './layout';
+import { blindSummary } from './lib/blinds';
+import { curtainSummary } from './lib/curtains';
 import { fitCheck } from './lib/fit';
 import { applyColours, initTextures } from './materials/library';
 import { buildOverlays } from './overlays/overlays';
+import { buildBlinds, type BlindRefs } from './room/blinds';
+import { buildCurtains, type CurtainRefs } from './room/curtains';
 import { buildDoors } from './room/doors';
 import { buildFloor } from './room/floor';
 import { buildShell } from './room/shell';
 import { CAMERA_PRESETS, CameraRig } from './scene/cameras';
-import { updateCutaway } from './scene/cutaway';
+import { resetCutaway, updateCutaway } from './scene/cutaway';
 import { applyLighting, createLights } from './scene/lighting';
 import { clearSavedState, defaultState, loadInitialState, mergeInto, saveState, shareUrl, type CameraPreset } from './state';
 import { buildGui, type Section } from './ui/gui';
@@ -58,6 +62,15 @@ let bedside: BedsideRefs | null = null;
 let dressing: DressingRefs | null = null;
 let pendant: PendantRefs | null = null;
 let overlays: THREE.Group | null = null;
+let blinds: BlindRefs | null = null;
+let blindsForce = true;
+// Blinds live in the window-wall group so they hide (but still cast shadows) with that wall.
+const blindsHolder = new THREE.Group();
+shell.wallGroups.window.add(blindsHolder);
+let curtains: CurtainRefs | null = null;
+let curtainsForce = true;
+const curtainsHolder = new THREE.Group();
+shell.wallGroups.window.add(curtainsHolder);
 
 function swap<T extends THREE.Object3D>(old: T | null | undefined, next: T): T {
   if (old) {
@@ -97,7 +110,7 @@ function applyVisibility(): void {
   doors.group.visible = state.show.doors;
 }
 
-const BUILD_ORDER: Section[] = ['floor', 'wardrobes', 'bed', 'bedside', 'dressing', 'pendant', 'visibility', 'colours', 'lighting', 'overlays'];
+const BUILD_ORDER: Section[] = ['floor', 'wardrobes', 'bed', 'bedside', 'dressing', 'blinds', 'curtains', 'pendant', 'visibility', 'colours', 'lighting', 'overlays'];
 const dirty = new Set<Section>(BUILD_ORDER);
 
 function processDirty(): void {
@@ -154,6 +167,30 @@ function processDirty(): void {
         dirty.add('visibility');
         break;
       }
+      case 'blinds': {
+        if (blinds) {
+          blindsHolder.remove(blinds.group);
+          disposeTree(blinds.group);
+        }
+        blinds = buildBlinds(state);
+        blindsHolder.add(blinds.group);
+        resetCutaway(shell.wallGroups.window);
+        blindsForce = true;
+        gui.setBlindSize(blindSummary(state.blinds.type, state.blinds.mount, state.blinds.panels));
+        break;
+      }
+      case 'curtains': {
+        if (curtains) {
+          curtainsHolder.remove(curtains.group);
+          disposeTree(curtains.group);
+        }
+        curtains = buildCurtains(state);
+        curtainsHolder.add(curtains.group);
+        resetCutaway(shell.wallGroups.window);
+        curtainsForce = true;
+        gui.setCurtainSize(curtains.layout ? curtainSummary(curtains.layout, state.curtains.hardware) : '—');
+        break;
+      }
       case 'pendant': {
         const next = buildPendant(state);
         if (pendant) {
@@ -195,6 +232,9 @@ const anim = {
   pocket: state.doors.ensuiteOpen,
   ward: state.doors.wardrobe.map((_, i) => wardTarget(i)),
   lift: state.bed.ottoman ? CONFIG.bed.ottomanMaxAngle : 0,
+  blindLower: state.blinds.lowered,
+  blindTilt: state.blinds.tilt,
+  curtainOpen: state.curtains.open,
 };
 const approach = (cur: number, target: number, dt: number, rate = 7) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
@@ -212,6 +252,24 @@ function updateAnimations(dt: number): void {
   if (bed) {
     anim.lift = approach(anim.lift, state.bed.ottoman ? CONFIG.bed.ottomanMaxAngle : 0, dt, 4);
     bed.liftPivot.rotation.x = -deg(anim.lift);
+  }
+  if (blinds) {
+    const lower = approach(anim.blindLower, state.blinds.lowered, dt, 4);
+    const tilt = approach(anim.blindTilt, state.blinds.tilt, dt, 6);
+    if (blindsForce || Math.abs(lower - anim.blindLower) > 1e-3 || Math.abs(tilt - anim.blindTilt) > 1e-3) {
+      blinds.update(lower, tilt);
+      blindsForce = false;
+    }
+    anim.blindLower = lower;
+    anim.blindTilt = tilt;
+  }
+  if (curtains) {
+    const open = approach(anim.curtainOpen, state.curtains.open, dt, 3.5);
+    if (curtainsForce || Math.abs(open - anim.curtainOpen) > 1e-3) {
+      curtains.update(open);
+      curtainsForce = false;
+    }
+    anim.curtainOpen = open;
   }
 }
 

@@ -509,3 +509,32 @@ Built as planned. Differences from the spec above:
 - **Ambient occlusion (N8AO) is not included.** It was optional and the scene reads well without it.
 - **Extras:** keys 1–7 switch camera views, `?cam=x,y,z,tx,ty,tz` sets an exact camera, and a "Custom" wardrobe build is selected automatically when the frame or base is changed by hand.
 - **Verification:** `pnpm typecheck`, `pnpm test` (14 tests) and `pnpm build` all pass. Every camera view was checked with headless-Chrome screenshots, with no console errors.
+
+### Blinds (added after v0.1)
+- `CONFIG.blinds` holds two types:
+  - **Faux wood 50mm:** 43mm pitch, 6.5mm stack pitch, 50×60 headrail, 75mm valance.
+  - **Aluminium venetian 25mm:** 21mm pitch, 2.6mm stack pitch, 25×25 headrail, no valance.
+- **Six finishes:** white, linen, grey-beige, oak effect, brushed silver, matt black.
+- **Fitting:**
+  - **Recess:** 5mm side clearance, slats 15mm behind the wall face, clear of the window handles.
+  - **Face fit:** 100mm overlap each side, headrail 100mm above the opening, 35mm off the wall.
+  - In both cases the bottom rail stops 5mm above the window board.
+- **Pure layout** is in `src/lib/blinds.ts` (6 unit tests). Raising the blind lifts the bottom rail, which collects slats into a flat stack. Lowering and tilting are animated without rebuilding the geometry.
+- **Defaults:** 3 white faux-wood blinds in the recess (each 780 × 1233mm), fully lowered, slats tilted 15°.
+- **Size warning:** the panel warns when a single blind is wider than the typical 2400mm maximum. One face-fit blind would be 2560mm wide. Check the exact limit with your supplier.
+
+### Curtains (added after v0.1)
+- **Product:** [Touched By Design Luminaire Forest Green](https://www.blindsdirect.co.uk/product/touched-by-design-luminaire-forest-green-curtain): 100% polyester crushed-velvet-look plain weave, 140cm fabric width.
+- **Order spec:** pencil pleat (75mm tape), pair, thermal blackout lining, no tiebacks.
+- **Colour:** sampled from the swatch: `#424B3B`, ranging from `#232F25` to `#68765D`. Saved as `reference/luminaire-forest-green-*.jpg`.
+- **Material:** `MeshPhysicalMaterial` with sheen, a procedural crushed-velvet mottle and an ivory lining on the back face. The fabric casts shadows from both sides, so closing the curtains blocks the sun.
+- **Geometry:**
+  - Each curtain is a pleated sheet with about one fold per 110mm.
+  - Fold depth is worked out from the fabric being gathered into the current span (2.25× fullness), so folds deepen as the curtains open.
+  - Pencil-pleat ripples in the heading, slight flare at the hem, seeded variation between folds.
+- **Hanging:**
+  - **Pole (default):** antique brass to tie in with the brass handles, 28mm, 150mm above the window, 200mm past each side, 130mm off the wall (210mm when the blinds are face fitted). Rings move with the folds; ball finials; three brackets.
+  - **Track:** white, wall-bracketed.
+- **Default length is below sill (hem 850)**, because floor-length curtains would hit the dressing table (top 760) under the window. The clearances overlay flags this ("Curtain hem → dressing table top").
+- **Pure maths** is in `src/lib/curtains.ts` (6 unit tests). The order readout shows pole width × drop and fabric widths per curtain. Defaults: pole 2760mm, drop about 1506mm, about 2.2 fabric widths per curtain.
+

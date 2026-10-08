@@ -274,3 +274,34 @@ function boxBlur(src: Float32Array, w: number, h: number, r: number, horizontal:
   }
   return out;
 }
+
+/** Crushed-velvet mottling with fine horizontal slubs, neutral grey (multiply with the fabric colour). */
+export function velvetCanvas(seed: number, size = 512): HTMLCanvasElement {
+  const { c, ctx } = makeCanvas(size, size);
+  const r = mulberry32(seed);
+  ctx.fillStyle = 'rgb(205,205,205)';
+  ctx.fillRect(0, 0, size, size);
+  // Soft blotches (draw wrapped so the tile repeats seamlessly)
+  for (let i = 0; i < 140; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const rad = 20 + r() * 110;
+    const light = r() < 0.5;
+    const a = 0.05 + r() * 0.12;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad);
+        g.addColorStop(0, light ? `rgba(255,255,255,${a})` : `rgba(70,70,70,${a})`);
+        g.addColorStop(1, 'rgba(128,128,128,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2);
+      }
+    }
+  }
+  // Horizontal slubs
+  for (let i = 0; i < 2600; i++) {
+    ctx.fillStyle = r() < 0.6 ? `rgba(255,255,255,${0.06 + r() * 0.14})` : `rgba(40,40,40,${0.05 + r() * 0.1})`;
+    ctx.fillRect(r() * size, r() * size, 4 + r() * 26, 1);
+  }
+  return c;
+}

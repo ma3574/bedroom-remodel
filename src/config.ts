@@ -12,6 +12,28 @@ export interface WardrobeBuild {
   base: number;
 }
 
+export type BlindType = 'none' | 'faux-wood' | 'metal';
+export type BlindMount = 'recess' | 'face';
+export type BlindFinish = 'white' | 'linen' | 'grey-beige' | 'oak' | 'silver' | 'black';
+
+export interface BlindSpec {
+  label: string;
+  slat: number; // slat width (front to back), mm
+  thickness: number;
+  pitch: number; // vertical spacing when lowered
+  stackPitch: number; // spacing when raised into the stack
+  headrail: { h: number; d: number };
+  bottomRail: number; // height
+  valance: number; // 0 = none
+  cord: number; // ladder cord radius
+  typicalMaxWidth: number;
+  defaultFinish: BlindFinish;
+}
+
+export type CurtainDrop = 'sill' | 'below-sill' | 'floor';
+export type CurtainHardware = 'pole' | 'track';
+export type PoleFinish = 'antique-brass' | 'matt-black' | 'brushed-nickel' | 'white';
+
 export interface FrameSpec {
   frameH: number;
   doorH: number;
@@ -119,6 +141,81 @@ export const CONFIG = {
   },
 
   dressingTable: { along: 2900, w: 1000, d: 450, h: 760 },
+
+  blinds: {
+    types: {
+      'faux-wood': {
+        label: 'Faux wood 50mm',
+        slat: 50,
+        thickness: 3,
+        pitch: 43,
+        stackPitch: 6.5,
+        headrail: { h: 50, d: 60 },
+        bottomRail: 20,
+        valance: 75,
+        cord: 1.4,
+        typicalMaxWidth: 2400,
+        defaultFinish: 'white',
+      },
+      metal: {
+        label: 'Venetian aluminium 25mm',
+        slat: 25,
+        thickness: 0.8,
+        pitch: 21,
+        stackPitch: 2.6,
+        headrail: { h: 25, d: 25 },
+        bottomRail: 10,
+        valance: 0,
+        cord: 0.8,
+        typicalMaxWidth: 2400,
+        defaultFinish: 'silver',
+      },
+    } as Record<Exclude<BlindType, 'none'>, BlindSpec>,
+    finishes: {
+      white: { label: 'Brilliant white', colour: '#F4F2EE' },
+      linen: { label: 'Linen', colour: '#E6DDCC' },
+      'grey-beige': { label: 'Grey-beige (match wardrobes)', colour: '#CBBFAF' },
+      oak: { label: 'Light oak effect', colour: '#ffffff', grain: true },
+      silver: { label: 'Brushed silver', colour: '#C9CCCF', metallic: true },
+      black: { label: 'Matt black', colour: '#262626' },
+    } as Record<BlindFinish, { label: string; colour: string; grain?: boolean; metallic?: boolean }>,
+    /** Inside the 150mm reveal, in front of the window handles. */
+    recess: { sideClearance: 5, topGap: 2, frontInset: 15 },
+    /** On the wall above the opening, overlapping each side. */
+    face: { overlap: 100, above: 100, standoff: 35 },
+    sillGap: 5, // bottom rail clearance above the window board
+    panelGap: 5, // between neighbouring blinds
+  },
+
+  /** Touched By Design "Luminaire" Forest Green: pencil pleat pair, thermal blackout lining, no tiebacks. */
+  curtains: {
+    fabric: {
+      name: 'Luminaire Forest Green',
+      colour: '#424B3B', // swatch average
+      dark: '#232F25',
+      light: '#68765D',
+      sheen: '#7F9173',
+      lining: '#ECE7DC', // thermal blackout lining (ivory)
+      boltWidth: 1400, // fabric roll width; curtains are made in half widths
+    },
+    headingTape: 75, // pencil pleat tape depth
+    fullness: 2.25, // flat fabric width ÷ covered width when closed
+    foldPitch: 110, // approx. one soft fold per 110mm of pole when closed
+    stackRatio: 0.12, // open stack width ≈ 12% of the flat fabric width
+    extendEachSide: 200, // pole/track beyond the window opening, so curtains stack off the glass
+    aboveWindow: 150, // window head to pole centre
+    projection: 130, // wall to pole centre (fabric centreline); folds clear the window board
+    projectionWithFaceBlinds: 210, // pushed out to clear face-fitted blinds and valance
+    drops: { sill: 990, 'below-sill': 850, floor: 10 } as Record<CurtainDrop, number>, // hem height above floor
+    pole: { diameter: 28, finial: 55, ringRadius: 22, ringTube: 3 },
+    track: { w: 20, h: 16 },
+    finishes: {
+      'antique-brass': { label: 'Antique brass', colour: '#A0824F', metalness: 1, roughness: 0.38 },
+      'matt-black': { label: 'Matt black', colour: '#1E1E1E', metalness: 0.5, roughness: 0.5 },
+      'brushed-nickel': { label: 'Brushed nickel', colour: '#BFC2C4', metalness: 1, roughness: 0.32 },
+      white: { label: 'White', colour: '#F2F0EB', metalness: 0, roughness: 0.4 },
+    } as Record<PoleFinish, { label: string; colour: string; metalness: number; roughness: number }>,
+  },
 
   pendant: { x: 2100, z: 2275, drop: 330 },
 };

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { CONFIG, OPENINGS } from '../config';
 import { bedRect, bedsideRects, dressingRect, rectGap, wardrobeDims, wardrobeDoor, type Rect } from '../layout';
+import { curtainLayout, curtainSettingsFrom } from '../lib/curtains';
 import type { State } from '../state';
 import { mm } from '../units';
 
@@ -90,6 +91,8 @@ interface Clearance {
   q: [number, number];
   gap: number;
   warnBelow: number;
+  /** Optional label text replacing the default "name: gap". */
+  note?: string;
 }
 
 export function computeClearances(s: State): Clearance[] {
@@ -123,6 +126,26 @@ export function computeClearances(s: State): Clearance[] {
       if (!best || g.gap < best.gap) best = { name: `Dressing table → ${name}`, p: g.p, q: g.q, gap: g.gap, warnBelow: 50 };
     }
     if (best) out.push(best);
+    if (s.curtains.enabled && s.dressing.wall === 'window') {
+      const L = curtainLayout(curtainSettingsFrom(s));
+      const zMin = R.depth - L.a1;
+      const zMax = R.depth - L.a0;
+      const z0 = Math.max(dt.z0, zMin);
+      const z1 = Math.min(dt.z1, zMax);
+      if (z1 > z0) {
+        const top = CONFIG.dressingTable.h;
+        const gap = L.bottom - top;
+        const z = (z0 + z1) / 2;
+        out.push({
+          name: 'Curtain hem → dressing table top',
+          p: [R.width + L.c, z],
+          q: [dt.x0, z],
+          gap,
+          warnBelow: 30,
+          note: gap <= 0 ? `Curtains hit the dressing table (hem ${L.bottom} mm, table top ${top} mm)` : undefined,
+        });
+      }
+    }
   }
   return out;
 }
@@ -162,7 +185,7 @@ export function buildOverlays(s: State): THREE.Group {
       const colour = c.gap <= 0 ? COLOURS.bad : c.gap < c.warnBelow ? COLOURS.warn : COLOURS.ok;
       group.add(measure(c.p, c.q, colour));
       const cls = c.gap <= 0 ? 'bad' : c.gap < c.warnBelow ? 'warn' : 'ok';
-      const text = c.gap <= 0 ? `${c.name}: overlaps ${Math.round(-c.gap)} mm` : `${c.name}: ${Math.round(c.gap)} mm`;
+      const text = c.note ?? (c.gap <= 0 ? `${c.name}: overlaps ${Math.round(-c.gap)} mm` : `${c.name}: ${Math.round(c.gap)} mm`);
       group.add(label(text, (c.p[0] + c.q[0]) / 2, 30, (c.p[1] + c.q[1]) / 2, cls));
     }
   }
